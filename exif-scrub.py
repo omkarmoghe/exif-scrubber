@@ -5,11 +5,14 @@ import re
 import exif
 import os
 
+EXIF_ATTRS = exif._constants.ATTRIBUTE_ID_MAP
+
 @click.command()
 @click.argument('file_glob', type=click.STRING)
 @click.option('-G', '--gps', is_flag=True)
 @click.option('-A', '--all', is_flag=True)
-def exif_scrub(file_glob, gps, all):
+@click.option('-P', '--pattern', type=click.STRING)
+def exif_scrub(file_glob, gps, all, pattern):
   filepaths = glob.glob(file_glob)
   scrubbed = {}
 
@@ -21,7 +24,10 @@ def exif_scrub(file_glob, gps, all):
 
       # Remove EXIF data.
       if gps:
-        remove_gps(image)
+        remove_match(image, '^gps')
+
+      if pattern:
+        remove_match(image, pattern)
 
       if all:
         remove_all(image)
@@ -34,16 +40,21 @@ def exif_scrub(file_glob, gps, all):
     with open(name, 'wb') as new_image_file:
       new_image_file.write(image_bytes)
 
-def remove_gps(image):
-  gps_attrs = [e_attr for e_attr in dir(image) if re.match('gps', e_attr)]
-  remove_exif_attrs(image, gps_attrs)
-
 def remove_all(image):
-  remove_exif_attrs(image, dir(image))
+  all_attrs = [e_attr for e_attr in EXIF_ATTRS if re.match('^(?!_).*', e_attr)]
+  remove_exif_attrs(image, all_attrs)
+
+def remove_match(image, pattern):
+  attrs_to_remove = [e_attr for e_attr in EXIF_ATTRS if re.match(pattern, e_attr)]
+  remove_exif_attrs(image, attrs_to_remove)
 
 def remove_exif_attrs(image, exif_attrs):
   for exif_attr in exif_attrs:
-    delattr(image, exif_attr)
+    try:
+      image.delete(exif_attr)
+      click.echo(f"- {exif_attr}")
+    except AttributeError:
+      pass
 
 if __name__ == '__main__':
   exif_scrub()
