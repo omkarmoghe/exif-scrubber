@@ -8,15 +8,14 @@ import os
 EXIF_ATTRS = exif._constants.ATTRIBUTE_ID_MAP.keys()
 
 @click.command()
-@click.argument('file_glob', type=click.STRING)
+@click.argument('filepaths', type=click.types.Path(), nargs=-1, required=True)
 @click.option('-G', '--gps', is_flag=True)
 @click.option('-A', '--all', is_flag=True)
 @click.option('-P', '--pattern', type=click.STRING)
-def exif_scrub(file_glob, gps, all, pattern):
-  filepaths = glob.glob(os.path.expanduser(file_glob))
-
+def exif_scrub(filepaths, gps, all, pattern):
   # Scrubs images one by one to avoid memory bloat.
   for filepath in filepaths:
+    filepath = os.path.expanduser(filepath)
     with open(filepath, 'rb') as image_file:
       image = exif.Image(image_file)
       if not image.has_exif:
